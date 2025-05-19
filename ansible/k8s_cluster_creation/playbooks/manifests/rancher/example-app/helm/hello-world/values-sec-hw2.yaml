@@ -1,0 +1,51 @@
+containerConfigs:
+  - name: hello-world
+
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "50m"
+      limits:
+        memory: "128Mi"
+        cpu: "100m"
+
+    envs:
+      - name: "ENV_VAR_1_2"
+        value: "value2"
+      - name: "ENV_VAR_2_2"
+        value: "value2"
+      - name: "NAME_SERVICE"
+        value: "hello-world-2"
+
+    extraSecretVars:
+      - name: "vars-secret-2"
+        data:
+          username: "test2"
+          password: "test2"
+
+    extraConfigMapVars:
+      - name: "vars-configmap-2"
+        data:
+          exampleUrl: "example2.com"
+          internalUrlMicroservice: "http://hello-world-1.hello-app.svc.cluster.local"
+    
+    extraSecretFiles:
+      - name: env-secret-2
+        mountPath: /etc/secrets
+        readOnly: true
+        data:
+          .env: |
+            DB_USER=user2
+            DB_PASSWORD=password2
+
+    extraConfigMapFiles:
+      - name: appsetting-2
+        mountPath: /etc/config
+        readOnly: true
+        data:
+          appsetting-2.json: |
+            {
+              "setting1": "value1-2",
+              "setting2": "value2-2",
+              "setting3": "value3-2"
+            }

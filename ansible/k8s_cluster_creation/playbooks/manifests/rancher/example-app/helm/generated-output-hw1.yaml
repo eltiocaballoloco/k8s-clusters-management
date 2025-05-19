@@ -1,0 +1,178 @@
+---
+# Source: hello-world/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "hello-world-vars-secret-1"
+  namespace: hello-app
+type: Opaque
+data:
+  password: dGVzdDE=
+  username: dGVzdDE=
+---
+# Source: hello-world/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "hello-world-env-secret-1"
+  namespace: hello-app
+type: Opaque
+data:
+  .env: REJfVVNFUj11c2VyCkRCX1BBU1NXT1JEPXBhc3N3b3JkCg==
+---
+# Source: hello-world/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "hello-world-vars-configmap-1"
+  namespace: hello-app
+data:
+  exampleUrl: "example1.com"
+  internalUrlMicroservice: "http://hello-world-2.hello-app.svc.cluster.local"
+---
+# Source: hello-world/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "hello-world-appsetting-1"
+  namespace: hello-app
+data:
+  appsetting-1.json: |
+    {
+      "setting1": "value1-1",
+      "setting2": "value2-1"
+    }
+---
+# Source: hello-world/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-world-1
+  namespace: hello-app
+  labels:
+    app: hello-world-1
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+  selector:
+    app: hello-world-1
+---
+# Source: hello-world/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world-1
+  namespace: hello-app
+  labels:
+    app: hello-world-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-world-1
+  template:
+    metadata:
+      labels:
+        app: hello-world-1
+    spec:
+      containers:
+        - name: hello-world
+          image: "docker.io/dalecosta/hello-world:latest"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 2
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          env:
+            - name: ENV_VAR_1_1
+              value: value1
+            - name: ENV_VAR_2_1
+              value: value2
+          envFrom:
+            - secretRef:
+                name: "hello-world-vars-secret-1"
+            - configMapRef:
+                name: "hello-world-vars-configmap-1"
+          volumeMounts:
+            - name: "hello-world-appsetting-1"
+              mountPath: /etc/config/appsetting-1.json
+              subPath: appsetting-1.json
+              readOnly: true
+            - name: "hello-world-env-secret-1"
+              mountPath: /etc/secrets/.env
+              subPath: .env
+              readOnly: true
+
+      volumes:
+        - name: "hello-world-appsetting-1"
+          configMap:
+            name: "hello-world-appsetting-1"
+            items:
+              - key: appsetting-1.json
+                path: appsetting-1.json
+        - name: "hello-world-env-secret-1"
+          secret:
+            secretName: "hello-world-env-secret-1"
+            items:
+              - key: .env
+                path: .env
+---
+# Source: hello-world/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hello-world-1
+  namespace: hello-app
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: "letsencrypt-digitalocean"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - hello-1.dalecosta.com
+    secretName: dalecosta-wildcard-tls
+  rules:
+  - host: hello-1.dalecosta.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: hello-world-1
+            port:
+              number: 80

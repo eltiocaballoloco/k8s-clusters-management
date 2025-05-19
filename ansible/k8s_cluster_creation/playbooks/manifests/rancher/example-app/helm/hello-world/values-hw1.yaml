@@ -1,0 +1,63 @@
+application:
+  name: hello-world-1
+  namespace: hello-app
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  protocol: TCP
+
+ingress:
+  host: hello-1.dalecosta.com
+  className: nginx
+  path: /
+  pathType: Prefix
+  certificate:
+    name: dalecosta-wildcard-tls
+
+containers:
+  - name: "hello-world"
+
+    image:
+      repository: docker.io/dalecosta/hello-world
+      tag: latest
+      pullPolicy: Always
+
+    ports:
+      - name: http
+        containerPort: 8080
+        protocol: TCP
+
+    probes:
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 2
+        failureThreshold: 3
+
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 3
+        periodSeconds: 5
+        timeoutSeconds: 2
+        successThreshold: 1
+        failureThreshold: 3
+
+      startupProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        failureThreshold: 30
+        periodSeconds: 10        
+
+    args: []
+
+    commands: [] 

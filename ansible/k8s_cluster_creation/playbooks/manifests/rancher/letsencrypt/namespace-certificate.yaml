@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: dalecosta-wildcard-tls
+  namespace: hello-app  # Change with your namespace
+spec:
+  secretName: dalecosta-wildcard-tls
+  issuerRef:
+    name: letsencrypt-digitalocean # ClusterIssuer name created previously (referred to privateKeySecretRef.name)
+    kind: ClusterIssuer
+  commonName: "*.dalecosta.com" # Change with your domain
+  dnsNames:
+    - "*.dalecosta.com" # Change with your domain

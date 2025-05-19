@@ -1,0 +1,86 @@
+---
+- name: Regenerating certificats for backup master node (connect to masternode to generate again the certificates)
+  hosts: k8s_node_init
+  tasks:
+    # Copy kubeadm.json to master node
+    - name: Copy output_kubeadm.json (only for master node) to regenerate the certificates
+      copy:
+        src: "{{ kubeconfig_path }}/{{ cluster_name }}/output_kubeadm.json"
+        dest: "{{ ansible_env.PWD }}/output_kubeadm.json"
+        mode: '0755'
+      when: (kubeconfig_method == "local" and node_type == "master" and master_type == "master")
+
+    # If kubeconfig_method is from one-drive, download it
+    - name: Handle kubeconfig method for one-drive (if configured)
+      shell: |
+        case "{{ kubeconfig_method }}" in
+          local)
+            echo "[INFORMATION] Ansible has uploaded the output_kubeadm.json"
+            ;;
+          onedrive)
+            echo "[INFORMATION] Getting the output_kubeadm.json from one-drive"
+            sinaloa azure one-drive get-file -f "{{ kubeconfig_path }}/output_kubeadm.json" -g "{{ ansible_env.PWD }}/output_kubeadm.json"
+            ;;
+          *)
+            echo "[ERROR] Unknown KUBECONFIG_METHOD: {{ kubeconfig_method }}"
+            exit 1
+            ;;
+        esac
+      args:
+        executable: /bin/bash
+      register: kubeconfig_upload
+      ignore_errors: false
+      environment:
+        AZURE_TENANT_ID: "{{ azure_tenant_id }}"
+        AZURE_CLIENT_ID: "{{ azure_client_id }}"
+        AZURE_CLIENT_SECRET: "{{ azure_client_secret }}"
+        AZURE_DRIVE_ID: "{{ azure_drive_id }}"
+
+    # Update the cert_key in the output_kubeadm.json
+    - name: Update cert_key in JSON using kubeadm and jq
+      shell: |
+        cert_key=$(sudo kubeadm init phase upload-certs --upload-certs | awk '/Using certificate key:/ {getline; print}')
+        jq --arg cert_key "$cert_key" '.cert_key = $cert_key' output_kubeadm.json > tmp.json && mv tmp.json output_kubeadm.json
+      become: yes
+
+    # Download local or update to one-drive the new json
+    - name: Handle kubeconfig method
+      shell: |
+        case "{{ kubeconfig_method }}" in
+        local)
+            echo "[INFORMATION] On ansible will download the new kubeadm.json"
+            ;;
+        onedrive)
+            echo "[INFORMATION] Moving the new kubeadm.json to onedrive"
+            sinaloa azure one-drive upload-file -f "{{ ansible_env.PWD }}/output_kubeadm.json" -g "{{ kubeconfig_path }}/output_kubeadm.json"
+            ;;
+        *)
+            echo "[ERROR] Unknown KUBECONFIG_METHOD: {{ kubeconfig_method }}"
+            exit 1
+            ;;
+        esac
+      args:
+        executable: /bin/bash
+      register: kubeconfig_download
+      ignore_errors: false
+      environment:
+        AZURE_TENANT_ID: "{{ azure_tenant_id }}"
+        AZURE_CLIENT_ID: "{{ azure_client_id }}"
+        AZURE_CLIENT_SECRET: "{{ azure_client_secret }}"
+        AZURE_DRIVE_ID: "{{ azure_drive_id }}"
+  
+    # If configured local method download the new output_kubeadm.json locally
+    - name: Fetch output_kubeadm.json to local machine (only for master node main)
+      fetch:
+        src: "{{ ansible_env.PWD }}/output_kubeadm.json"
+        dest: "{{ kubeconfig_path }}/{{ cluster_name }}/output_kubeadm.json"
+        flat: yes
+      when: kubeconfig_method == "local" and node_type == "master" and master_type == "master"
+
+    # Delete the new output_kubeadm.json file
+    - name: Delete the output_kubeadm.json file
+      file:
+        path: "{{ ansible_env.PWD }}/output_kubeadm.json"
+        state: absent
+      become: true
+      become_user: root

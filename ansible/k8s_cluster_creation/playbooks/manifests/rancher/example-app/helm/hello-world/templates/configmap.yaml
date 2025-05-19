@@ -1,0 +1,19 @@
+{{- range $container := .Values.containerConfigs }}
+  {{- range $configMap := (concat $container.extraConfigMapVars $container.extraConfigMapFiles) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "{{ $container.name }}-{{ $configMap.name }}"
+  namespace: {{ $.Values.application.namespace }}
+data:
+  {{- range $key, $val := $configMap.data }}
+    {{- if contains "\n" $val }}
+  {{ $key }}: |
+{{ $val | indent 4 }}
+    {{- else }}
+  {{ $key }}: "{{ $val }}"
+    {{- end }}
+  {{- end }}
+  {{- end }}
+{{- end }}

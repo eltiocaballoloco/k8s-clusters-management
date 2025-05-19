@@ -1,0 +1,142 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.application.name }}
+  namespace: {{ .Values.application.namespace }}
+  labels:
+    app: {{ .Values.application.name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.application.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.application.name }}
+    spec:
+      containers:
+        {{- range $container := .Values.containers }}
+        - name: {{ $container.name }}
+          image: "{{ $container.image.repository }}:{{ $container.image.tag }}"
+          imagePullPolicy: {{ $container.image.pullPolicy }}
+
+          {{- if $container.ports }}
+          ports:
+            {{- toYaml $container.ports | nindent 12 }}
+          {{- else }}
+          ports:
+            - containerPort: {{ $.Values.service.targetPort }}
+          {{- end }}
+
+          {{- $cfg := dict }}
+          {{- range $.Values.containerConfigs }}
+            {{- if eq .name $container.name }}
+              {{- $_ := set $cfg "envs" .envs }}
+              {{- $_ := set $cfg "resources" .resources }}
+              {{- $_ := set $cfg "extraSecretVars" .extraSecretVars }}
+              {{- $_ := set $cfg "extraConfigMapVars" .extraConfigMapVars }}
+              {{- $_ := set $cfg "extraConfigMapFiles" .extraConfigMapFiles }}
+              {{- $_ := set $cfg "extraSecretFiles" .extraSecretFiles }}
+            {{- end }}
+          {{- end }}
+
+          {{- if $cfg.resources }}
+          resources:
+            {{- toYaml $cfg.resources | nindent 12 }}
+          {{- end }}
+
+          {{- if $container.probes }}
+            {{- if $container.probes.livenessProbe }}
+          livenessProbe:
+            {{- toYaml $container.probes.livenessProbe | nindent 12 }}
+            {{- end }}
+            {{- if $container.probes.readinessProbe }}
+          readinessProbe:
+            {{- toYaml $container.probes.readinessProbe | nindent 12 }}
+            {{- end }}
+            {{- if $container.probes.startupProbe }}
+          startupProbe:
+            {{- toYaml $container.probes.startupProbe | nindent 12 }}
+            {{- end }}
+          {{- end }}
+
+          {{- if $container.args }}
+          args:
+            {{- toYaml $container.args | nindent 12 }}
+          {{- end }}
+
+          {{- if $container.commands }}
+          command:
+            {{- toYaml $container.commands | nindent 12 }}
+          {{- end }}
+
+          {{- if $cfg.envs }}
+          env:
+            {{- toYaml $cfg.envs | nindent 12 }}
+          {{- end }}
+
+          {{- if or $cfg.extraSecretVars $cfg.extraConfigMapVars }}
+          envFrom:
+            {{- range $secret := $cfg.extraSecretVars }}
+            - secretRef:
+                name: "{{ $container.name }}-{{ $secret.name }}"
+            {{- end }}
+            {{- range $cm := $cfg.extraConfigMapVars }}
+            - configMapRef:
+                name: "{{ $container.name }}-{{ $cm.name }}"
+            {{- end }}
+          {{- end }}
+
+          {{- if or $cfg.extraConfigMapFiles $cfg.extraSecretFiles }}
+          volumeMounts:
+            {{- range $cm := $cfg.extraConfigMapFiles }}
+            {{- range $key := keys $cm.data }}
+            - name: "{{ $container.name }}-{{ $cm.name }}"
+              mountPath: {{ $cm.mountPath }}/{{ $key }}
+              subPath: {{ $key }}
+              readOnly: {{ $cm.readOnly | default true }}
+            {{- end }}
+            {{- end }}
+
+            {{- range $secret := $cfg.extraSecretFiles }}
+            {{- range $key := keys $secret.data }}
+            - name: "{{ $container.name }}-{{ $secret.name }}"
+              mountPath: {{ $secret.mountPath }}/{{ $key }}
+              subPath: {{ $key }}
+              readOnly: {{ $secret.readOnly | default true }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+
+        {{- end }}
+
+      volumes:
+        {{- range $cfg := .Values.containerConfigs }}
+          {{- $containerName := .name }}
+          {{- range $cm := $cfg.extraConfigMapFiles }}
+        - name: "{{ $containerName }}-{{ $cm.name }}"
+          configMap:
+            name: "{{ $containerName }}-{{ $cm.name }}"
+            {{- if $cm.data }}
+            items:
+              {{- range $key := keys $cm.data }}
+              - key: {{ $key }}
+                path: {{ $key }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+
+          {{- range $secret := $cfg.extraSecretFiles }}
+        - name: "{{ $containerName }}-{{ $secret.name }}"
+          secret:
+            secretName: "{{ $containerName }}-{{ $secret.name }}"
+            {{- if $secret.data }}
+            items:
+              {{- range $key := keys $secret.data }}
+              - key: {{ $key }}
+                path: {{ $key }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
