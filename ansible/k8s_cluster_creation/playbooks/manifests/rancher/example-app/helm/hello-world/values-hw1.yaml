@@ -10,14 +10,6 @@ service:
   targetPort: 8080
   protocol: TCP
 
-ingress:
-  host: hello-1.dalecosta.com
-  className: nginx
-  path: /
-  pathType: Prefix
-  certificate:
-    name: dalecosta-wildcard-tls
-
 containers:
   - name: "hello-world"
 
