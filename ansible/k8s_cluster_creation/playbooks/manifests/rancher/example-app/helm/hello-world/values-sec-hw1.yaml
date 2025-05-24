@@ -57,3 +57,21 @@ containerConfigs:
               "setting1": "value1-1",
               "setting2": "value2-1"
             }
+
+
+  - name: ngrok-hello-world-1
+
+    extraSecretFiles:
+      - name: ngrok-config-1
+        mountPath: /etc/ngrok
+        readOnly: true
+        data:
+          ngrok.yml: |
+            version: 3
+            agent:
+              authtoken: 2w274FU9dBWAJwfZA0JZIh9Qc2Z_6KFvsFsvq28Be1jnoscHK
+            endpoints:
+              - name: hello-tunnel
+                url: well-dogfish-radically.ngrok-free.app
+                upstream:
+                  url: hello-world-1.hello-app.svc.cluster.local:80

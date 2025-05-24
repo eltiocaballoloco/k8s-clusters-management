@@ -24,9 +24,6 @@ spec:
           {{- if $container.ports }}
           ports:
             {{- toYaml $container.ports | nindent 12 }}
-          {{- else }}
-          ports:
-            - containerPort: {{ $.Values.service.targetPort }}
           {{- end }}
 
           {{- $cfg := dict }}

@@ -1,5 +1,7 @@
 {{- range $container := .Values.containerConfigs }}
-  {{- range $configMap := (concat $container.extraConfigMapVars $container.extraConfigMapFiles) }}
+  {{- $extraVars := default (list) $container.extraConfigMapVars }}
+  {{- $extraFiles := default (list) $container.extraConfigMapFiles }}
+  {{- range $configMap := (concat $extraVars $extraFiles) }}
 ---
 apiVersion: v1
 kind: ConfigMap
