@@ -53,13 +53,3 @@ containers:
     args: []
 
     commands: [] 
-
-
-  - name: ngrok-hello-world-1
-    
-    image:
-      repository: docker.io/ngrok/ngrok
-      tag: "3"
-      pullPolicy: Always
-
-    args: ["start", "--config", "/etc/ngrok/ngrok.yml", "hello-tunnel"]

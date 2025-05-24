@@ -20,16 +20,6 @@ type: Opaque
 data:
   .env: REJfVVNFUj11c2VyCkRCX1BBU1NXT1JEPXBhc3N3b3JkCg==
 ---
-# Source: hello-world/templates/secret.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: "ngrok-hello-world-1-ngrok-config-1"
-  namespace: hello-app
-type: Opaque
-data:
-  ngrok.yml: dmVyc2lvbjogMwphZ2VudDoKICBhdXRodG9rZW46IDJ3Mjc0RlU5ZEJXQUp3ZlpBMEpaSWg5UWMyWl82S0Z2c0ZzdnEyOEJlMWpub3NjSEsKZW5kcG9pbnRzOgogIC0gbmFtZTogaGVsbG8tdHVubmVsCiAgICB1cmw6IHdlbGwtZG9nZmlzaC1yYWRpY2FsbHkubmdyb2stZnJlZS5hcHAKICAgIHVwc3RyZWFtOgogICAgICB1cmw6IGhlbGxvLXdvcmxkLTEuaGVsbG8tYXBwLnN2Yy5jbHVzdGVyLmxvY2FsOjgwCg==
----
 # Source: hello-world/templates/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -147,19 +137,6 @@ spec:
               mountPath: /etc/secrets/.env
               subPath: .env
               readOnly: true
-        - name: ngrok-hello-world-1
-          image: "docker.io/ngrok/ngrok:3"
-          imagePullPolicy: Always
-          args:
-            - start
-            - --config
-            - /etc/ngrok/ngrok.yml
-            - hello-tunnel
-          volumeMounts:
-            - name: "ngrok-hello-world-1-ngrok-config-1"
-              mountPath: /etc/ngrok/ngrok.yml
-              subPath: ngrok.yml
-              readOnly: true
 
       volumes:
         - name: "hello-world-appsetting-1"
@@ -174,12 +151,6 @@ spec:
             items:
               - key: .env
                 path: .env
-        - name: "ngrok-hello-world-1-ngrok-config-1"
-          secret:
-            secretName: "ngrok-hello-world-1-ngrok-config-1"
-            items:
-              - key: ngrok.yml
-                path: ngrok.yml
 ---
 # Source: hello-world/templates/ingress.yaml
 apiVersion: networking.k8s.io/v1
